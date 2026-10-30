@@ -48,11 +48,11 @@
       </thead>
       <tbody>
         @for (torrent of sortedTorrents; track torrent.torrentId) {
-          <tr>
-            <td>
+          <tr (click)="openTorrent(torrent.torrentId)">
+            <td (click)="$event.stopPropagation()">
               <input type="checkbox" (click)="toggleSelect(torrent.torrentId)" [checked]="isSelected(torrent.torrentId)" />
             </td>
-            <td (click)="openTorrent(torrent.torrentId)" class="break-all">
+            <td class="break-all">
               <span class="tag is-light type-tag" [ngClass]="typeClass(torrent)">{{ typeLabel(torrent) }}</span>
               {{ torrent.rdName }}
             </td>
