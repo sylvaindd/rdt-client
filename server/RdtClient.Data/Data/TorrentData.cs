@@ -222,7 +222,9 @@ public class TorrentData(DataContext dataContext, ILogger<TorrentData>? logger =
             }
         }
 
-        if (!String.IsNullOrWhiteSpace(error) && retry)
+        // A direct download re-added by a retry waits for links that nothing sends again (the indexer bridge only sends
+        // them on grab), and its parts already went through every mirror. Fail it right away so the *arr can move on.
+        if (!String.IsNullOrWhiteSpace(error) && retry && dbTorrent.Type != DownloadType.Ddl)
         {
             if (dbTorrent.RetryCount < dbTorrent.TorrentRetryAttempts)
             {

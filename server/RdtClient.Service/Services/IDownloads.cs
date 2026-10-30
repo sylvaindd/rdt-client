@@ -23,4 +23,5 @@ public interface IDownloads
     Task UpdateRemoteId(Guid downloadId, String remoteId);
     Task DeleteForTorrent(Guid torrentId);
     Task Reset(Guid downloadId, DateTimeOffset? downloadQueued = null);
+    Task<String?> SwitchToNextMirror(Guid downloadId);
 }

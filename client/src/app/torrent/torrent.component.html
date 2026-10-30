@@ -1,3 +1,57 @@
+@if (isWaitingForDdlLinks) {
+  <div class="card mb-5">
+    <header class="card-header">
+      <p class="card-header-title">Waiting for links</p>
+    </header>
+    <div class="card-content">
+      <div class="field">
+        <label class="label">Release</label>
+        <span class="break-all">{{ torrent.rdName }}</span>
+      </div>
+      <div class="field">
+        <label class="label">Post</label>
+        <a class="break-all" href="{{ torrent.postUrl }}" target="_blank" rel="noopener noreferrer">
+          {{ torrent.postUrl }}
+        </a>
+        <p class="help">
+          Open the post, unlock the links, then paste them here (all mirrors are fine, one is picked automatically).
+        </p>
+      </div>
+      <div class="field">
+        <label class="label" for="ddlLinks">Links</label>
+        <div class="control">
+          <textarea
+            id="ddlLinks"
+            class="textarea"
+            rows="5"
+            placeholder="Paste the download links here, one per line"
+            [(ngModel)]="ddlLinks"
+            [disabled]="addingDdlLinks"
+          ></textarea>
+        </div>
+      </div>
+      <div class="field ddl-actions">
+        <div class="control">
+          <button
+            class="button is-success"
+            (click)="addDdlLinks()"
+            [disabled]="addingDdlLinks || !hasDdlLinks"
+            [ngClass]="{ 'is-loading': addingDdlLinks }"
+          >
+            Add links
+          </button>
+        </div>
+      </div>
+      @if (ddlError) {
+        <div class="notification is-danger is-light">{{ ddlError }}</div>
+      }
+    </div>
+  </div>
+}
+@if (ddlSuccess) {
+  <div class="notification is-success is-light mb-5">{{ ddlSuccess }}</div>
+}
+
 <div class="tabs">
   <ul>
     <li [ngClass]="{ 'is-active': activeTab === 0 }" (click)="activeTab = 0">

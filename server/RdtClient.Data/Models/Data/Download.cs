@@ -33,6 +33,12 @@ public class Download
 
     public String? FileName { get; set; }
 
+    /// <summary>
+    ///     Direct downloads only: the same file on other hosts, one link per line, tried in order when
+    ///     <see cref="Path" /> can't be unrestricted or downloaded.
+    /// </summary>
+    public String? Mirrors { get; set; }
+
     [NotMapped]
     public Int64 BytesTotal { get; set; }
 
@@ -59,4 +65,9 @@ public class DownloadInfo
     ///     either a fake or the unrestricted link
     /// </summary>
     public required String RestrictedLink;
+
+    /// <summary>
+    ///     Alternative restricted links for the same file, one per line. See <see cref="Download.Mirrors" />.
+    /// </summary>
+    public String? Mirrors;
 }

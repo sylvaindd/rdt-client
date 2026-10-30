@@ -67,6 +67,22 @@ export class TorrentService {
     return this.http.get<Torrent>(`${this.baseHref}Api/Torrents/Get/${torrentId}`);
   }
 
+  public getDdl(postUrl: string): Observable<Torrent> {
+    return this.http.get<Torrent>(`${this.baseHref}Api/Torrents/Ddl?postUrl=${encodeURIComponent(postUrl)}`);
+  }
+
+  public addDdlLinks(request: {
+    torrentId?: string;
+    postUrl?: string;
+    links: string;
+  }): Observable<{ torrentId: string; links: number }> {
+    return this.http.post<{ torrentId: string; links: number }>(`${this.baseHref}Api/Torrents/DdlLinks`, {
+      torrentId: request.torrentId,
+      postUrl: request.postUrl,
+      links: request.links,
+    });
+  }
+
   public getDiskSpaceStatus(): Observable<DiskSpaceStatus | null> {
     return this.http.get<DiskSpaceStatus | null>(`${this.baseHref}Api/Torrents/DiskSpaceStatus`);
   }

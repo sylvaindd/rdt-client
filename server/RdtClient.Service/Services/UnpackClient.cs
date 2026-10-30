@@ -98,9 +98,17 @@ public class UnpackClient(Download download, String destinationPath)
             }
             else
             {
-                Extract(filePath, extractPath, cancellationToken);
+                var parts = Extract(filePath, extractPath, cancellationToken);
 
                 await FileHelper.Delete(filePath);
+
+                if (_torrent.Type == DownloadType.Ddl)
+                {
+                    foreach (var part in parts)
+                    {
+                        await FileHelper.Delete(part);
+                    }
+                }
             }
 
             if (_torrent.ClientKind == Provider.TorBox)
@@ -145,9 +153,9 @@ public class UnpackClient(Download download, String destinationPath)
         return entries;
     }
 
-    private void Extract(String filePath, String extractPath, CancellationToken cancellationToken)
+    private List<String> Extract(String filePath, String extractPath, CancellationToken cancellationToken)
     {
-        var parts = ArchiveFactory.GetFileParts(filePath);
+        var parts = ArchiveFactory.GetFileParts(filePath).ToList();
 
         var fi = parts.Select(m => new FileInfo(m));
 
@@ -174,5 +182,7 @@ public class UnpackClient(Download download, String destinationPath)
         archive.Dispose();
 
         GC.Collect();
+
+        return parts;
     }
 }

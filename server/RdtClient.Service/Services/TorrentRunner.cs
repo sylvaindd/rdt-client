@@ -221,6 +221,10 @@ public class TorrentRunner(
                         await downloads.Reset(downloadId);
                         await downloads.UpdateRetryCount(downloadId, download.RetryCount + 1);
                     }
+                    else if (download.Torrent.Type == DownloadType.Ddl && await downloads.SwitchToNextMirror(downloadId) is { } mirror)
+                    {
+                        Log($"Retrying download from mirror {mirror}", download, download.Torrent);
+                    }
                     else
                     {
                         Log($"Not retrying download", download, download.Torrent);
@@ -367,7 +371,12 @@ public class TorrentRunner(
         }
 
         // Process torrents in DebridQueue
-        var torrentsToAddToProvider = allTorrents.Where(m => m.Completed == null && m.Error == null && m.RdId == null && m.RdAdded == null && m.RdStatus == TorrentStatus.Queued)
+        var torrentsToAddToProvider = allTorrents.Where(m => m.Completed == null &&
+                                                             m.Error == null &&
+                                                             m.RdId == null &&
+                                                             m.RdAdded == null &&
+                                                             m.RdStatus == TorrentStatus.Queued &&
+                                                             m.Type != DownloadType.Ddl)
                                                  .ToList();
 
         if (torrentsToAddToProvider.Count != 0)
@@ -523,7 +532,10 @@ public class TorrentRunner(
 
                             if (download.FileName == null)
                             {
-                                var fileName = await torrents.RetrieveFileName(download.DownloadId);
+                                var fileName = torrent.Type == DownloadType.Ddl
+                                    ? await torrents.UseLinkFileName(download.DownloadId, downloadLink)
+                                    : await torrents.RetrieveFileName(download.DownloadId);
+
                                 download.FileName = fileName;
                             }
                         }
@@ -532,7 +544,12 @@ public class TorrentRunner(
                     {
                         logger.LogError(ex, "Cannot unrestrict link: {ex.Message}", ex.Message);
 
-                        if (download.RetryCount < torrent.DownloadRetryAttempts)
+                        // The debrid service may refuse one host (LINK_HOST_NOT_SUPPORTED) but accept the same file elsewhere.
+                        if (torrent.Type == DownloadType.Ddl && await downloads.SwitchToNextMirror(download.DownloadId) is { } mirror)
+                        {
+                            Log($"Switching to mirror {mirror}", download, torrent);
+                        }
+                        else if (download.RetryCount < torrent.DownloadRetryAttempts)
                         {
                             var retryCount = download.RetryCount + 1;
                             var retryDelay = GetDownloadLinkRetryDelay(retryCount);
@@ -633,9 +650,12 @@ public class TorrentRunner(
 
                     var extension = Path.GetExtension(download.FileName);
 
+                    var isDdl = torrent.Type == DownloadType.Ddl;
+
                     if ((extension != ".rar" && extension != ".zip") ||
                         torrent.DownloadClient == Data.Enums.DownloadClient.Symlink ||
-                        settingUnpackLimit == 0)
+                        settingUnpackLimit == 0 ||
+                        (isDdl && DirectDownloadHelper.IsSecondaryArchiveVolume(download.FileName)))
                     {
                         Log($"No need to unpack, setting it as unpacked", download, torrent);
 
@@ -646,6 +666,29 @@ public class TorrentRunner(
                         await downloads.UpdateUnpackingStarted(download.DownloadId, download.UnpackingStarted);
                         await downloads.UpdateUnpackingFinished(download.DownloadId, download.UnpackingFinished);
                         await downloads.UpdateCompleted(download.DownloadId, download.Completed);
+
+                        continue;
+                    }
+
+                    // A failed volume has used up its mirrors; extracting without it can only fail, so fail the item instead.
+                    var failedVolumes = torrent.Downloads.Where(m => isDdl && m.DownloadId != download.DownloadId && m.Error != null).ToList();
+
+                    if (failedVolumes.Count > 0)
+                    {
+                        var error = $"Not unpacking, archive volumes failed: {String.Join(", ", failedVolumes.Select(m => m.FileName ?? m.Path))}";
+
+                        LogError(error, download, torrent);
+
+                        await downloads.UpdateError(download.DownloadId, error);
+                        await downloads.UpdateCompleted(download.DownloadId, DateTimeOffset.UtcNow);
+
+                        continue;
+                    }
+
+                    // Direct downloads are split into archive volumes; the first one can only be extracted once every part is on disk.
+                    if (isDdl &&torrent.Downloads.Any(m => m.DownloadId != download.DownloadId && m.DownloadFinished == null && m.Error == null))
+                    {
+                        Log($"Not starting unpack, waiting for the other archive volumes to finish downloading", download, torrent);
 
                         continue;
                     }

@@ -95,4 +95,9 @@ public class Downloads(DownloadData downloadData) : IDownloads
     {
         await downloadData.Reset(downloadId, downloadQueued);
     }
+
+    public async Task<String?> SwitchToNextMirror(Guid downloadId)
+    {
+        return await downloadData.SwitchToNextMirror(downloadId);
+    }
 }

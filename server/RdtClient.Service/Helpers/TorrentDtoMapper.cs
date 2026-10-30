@@ -49,6 +49,7 @@ public static class TorrentDtoMapper
             Type = torrent.Type,
             FileOrMagnet = includeFileOrMagnet ? torrent.Payload?.Content : null,
             IsFile = torrent.IsFile,
+            PostUrl = torrent.Type == DownloadType.Ddl ? torrent.Payload?.Content : null,
             Priority = torrent.Priority,
             RetryCount = torrent.RetryCount,
             DownloadRetryAttempts = torrent.DownloadRetryAttempts,
@@ -107,6 +108,11 @@ public static class TorrentDtoMapper
         if (!String.IsNullOrWhiteSpace(torrent.Error))
         {
             return torrent.Error;
+        }
+
+        if (torrent.Type == DownloadType.Ddl && torrent.Downloads.Count == 0 && torrent.Completed == null)
+        {
+            return "Waiting for links";
         }
 
         if (torrent.Downloads.Count > 0)

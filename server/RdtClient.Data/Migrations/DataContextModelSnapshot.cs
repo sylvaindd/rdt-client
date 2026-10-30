@@ -239,6 +239,9 @@ namespace RdtClient.Data.Migrations
                     b.Property<string>("Link")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Mirrors")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Path")
                         .IsRequired()
                         .HasColumnType("TEXT");

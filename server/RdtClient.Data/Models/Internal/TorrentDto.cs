@@ -23,6 +23,7 @@ public class TorrentDto
     public DownloadType Type { get; set; }
     public String? FileOrMagnet { get; set; }
     public Boolean IsFile { get; set; }
+    public String? PostUrl { get; set; }
     public Int32? Priority { get; set; }
     public Int32 RetryCount { get; set; }
     public Int32 DownloadRetryAttempts { get; set; }
