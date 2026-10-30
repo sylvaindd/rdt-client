@@ -135,6 +135,29 @@ export class TorrentComponent implements OnInit {
     };
   }
 
+  public get kind(): string {
+    switch (this.torrent?.type) {
+      case DownloadType.Nzb:
+        return 'NZB';
+      case DownloadType.Ddl:
+        return 'Download';
+      default:
+        return 'Torrent';
+    }
+  }
+
+  public get kindLower(): string {
+    return this.kind === 'NZB' ? 'NZB' : this.kind.toLowerCase();
+  }
+
+  public get isDdl(): boolean {
+    return this.torrent?.type === DownloadType.Ddl;
+  }
+
+  public get isNzb(): boolean {
+    return this.torrent?.type === DownloadType.Nzb;
+  }
+
   public get isWaitingForDdlLinks(): boolean {
     return (
       this.torrent != null &&
@@ -188,8 +211,9 @@ export class TorrentComponent implements OnInit {
       byteArray[index] = binaryString.charCodeAt(index);
     }
 
-    const blob = new Blob([byteArray], { type: 'application/x-bittorrent' });
-    saveAs(blob, `${this.torrent.rdName}.torrent`);
+    const [type, extension] = this.isNzb ? ['application/x-nzb', 'nzb'] : ['application/x-bittorrent', 'torrent'];
+    const blob = new Blob([byteArray], { type });
+    saveAs(blob, `${this.torrent.rdName}.${extension}`);
   }
 
   public showDeleteModal(): void {
