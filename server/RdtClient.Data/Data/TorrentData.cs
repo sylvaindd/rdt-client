@@ -253,6 +253,20 @@ public class TorrentData(DataContext dataContext, ILogger<TorrentData>? logger =
         await dataContext.SaveChangesAsync();
     }
 
+    public async Task UpdateDdlFallbackLinks(Guid torrentId, String? links)
+    {
+        var dbTorrent = await dataContext.Torrents.FirstOrDefaultAsync(m => m.TorrentId == torrentId);
+
+        if (dbTorrent == null)
+        {
+            return;
+        }
+
+        dbTorrent.DdlFallbackLinks = links;
+
+        await dataContext.SaveChangesAsync();
+    }
+
     public async Task UpdatePriority(Guid torrentId, Int32? priority)
     {
         var dbTorrent = await dataContext.Torrents.FirstOrDefaultAsync(m => m.TorrentId == torrentId);

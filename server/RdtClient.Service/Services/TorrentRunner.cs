@@ -549,6 +549,12 @@ public class TorrentRunner(
                         {
                             Log($"Switching to mirror {mirror}", download, torrent);
                         }
+                        else if (torrent.Type == DownloadType.Ddl &&
+                                 DirectDownloadHelper.IsHostRejection(ex.Message) &&
+                                 await torrents.SwitchDdlHost(torrent.TorrentId) is { } host)
+                        {
+                            Log($"Debrid service rejected the host, switched the item to {host}", download, torrent);
+                        }
                         else if (download.RetryCount < torrent.DownloadRetryAttempts)
                         {
                             var retryCount = download.RetryCount + 1;

@@ -75,7 +75,7 @@ public class DirectDownloadHelperTest
     }
 
     [Fact]
-    public void PickMirror_PrefersTheHostWithMoreParts()
+    public void PickMirror_SkipsAPreferredHostMissingAnArchivePart()
     {
         const String text = "https://rg.to/file/a/x.part1.rar.html, see also https://nitroflare.com/view/B/x.part1.rar https://nitroflare.com/view/C/x.part2.rar.";
 
@@ -94,11 +94,50 @@ public class DirectDownloadHelperTest
     }
 
     [Fact]
-    public void PickMirror_PartCountStillBeatsPreference()
+    public void PickMirror_IncompleteArchiveSetLosesEvenWhenPreferred()
     {
         const String text = "https://rapidgator.net/file/a/x.part1.rar.html https://rapidgator.net/file/b/x.part2.rar.html https://nitroflare.com/view/C/x.part1.rar";
 
         Assert.All(DirectDownloadHelper.PickMirror(text, "nitroflare"), l => Assert.Contains("rapidgator.net", l));
+    }
+
+    // One host offers the whole file, the other the same release split in two archives.
+    private const String WholeFileOrArchives = """
+                                               https://rapidgator.net/file/aaa/Movie.2026.2160p.WEB.h265-GRP.mkv
+                                               https://nitroflare.com/view/BBB/Movie.2026.2160p.WEB.h265-GRP.part1.rar
+                                               https://nitroflare.com/view/CCC/Movie.2026.2160p.WEB.h265-GRP.part2.rar
+                                               """;
+
+    [Fact]
+    public void PlanParts_PreferenceBeatsLinkCountWhenHostsPackageTheReleaseDifferently()
+    {
+        var parts = DirectDownloadHelper.PlanParts(WholeFileOrArchives);
+
+        var part = Assert.Single(parts);
+        Assert.Equal("https://rapidgator.net/file/aaa/Movie.2026.2160p.WEB.h265-GRP.mkv", part.Link);
+        Assert.Empty(part.Mirrors);
+    }
+
+    [Fact]
+    public void FallbackLinks_KeepsTheOtherHostsAndPlanningThemPicksTheNextHost()
+    {
+        var fallback = DirectDownloadHelper.FallbackLinks(WholeFileOrArchives);
+
+        Assert.Equal("https://nitroflare.com/view/BBB/Movie.2026.2160p.WEB.h265-GRP.part1.rar\n" +
+                     "https://nitroflare.com/view/CCC/Movie.2026.2160p.WEB.h265-GRP.part2.rar",
+                     fallback);
+        Assert.All(DirectDownloadHelper.PlanParts(fallback!), p => Assert.Contains("nitroflare.com", p.Link));
+        Assert.Null(DirectDownloadHelper.FallbackLinks(fallback!));
+    }
+
+    [Theory]
+    [InlineData("Host under maintenance or not available (LINK_HOST_UNAVAILABLE)", true)]
+    [InlineData("This host or link is not supported (LINK_HOST_NOT_SUPPORTED)", true)]
+    [InlineData("Link is dead (LINK_DOWN)", false)]
+    [InlineData(null, false)]
+    public void IsHostRejection(String? error, Boolean expected)
+    {
+        Assert.Equal(expected, DirectDownloadHelper.IsHostRejection(error));
     }
 
     [Fact]

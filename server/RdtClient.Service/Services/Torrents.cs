@@ -255,6 +255,8 @@ public class Torrents(
                                              });
         }
 
+        await torrentData.UpdateDdlFallbackLinks(torrent.TorrentId, DirectDownloadHelper.FallbackLinks(linksText, Settings.Get.General.DdlHostPreference));
+
         var now = DateTimeOffset.UtcNow;
 
         torrent.RdStatus = TorrentStatus.Finished;
@@ -269,6 +271,49 @@ public class Torrents(
         Log($"Added {parts.Count} direct-download links ({parts.Sum(p => p.Mirrors.Count)} mirrors)", torrent);
 
         return parts.Count;
+    }
+
+    /// <summary>
+    ///     Replaces the downloads of a direct-download item with the links of its next fallback host. Only done before any
+    ///     download has started, so files of two packagings never mix. Returns the new host, or null when it cannot switch.
+    /// </summary>
+    public virtual async Task<String?> SwitchDdlHost(Guid torrentId)
+    {
+        var torrent = await torrentData.GetById(torrentId);
+
+        if (torrent?.Type != DownloadType.Ddl || String.IsNullOrWhiteSpace(torrent.DdlFallbackLinks) || torrent.Downloads.Any(m => m.DownloadStarted != null))
+        {
+            return null;
+        }
+
+        var hostPreference = Settings.Get.General.DdlHostPreference;
+        var parts = DirectDownloadHelper.PlanParts(torrent.DdlFallbackLinks, hostPreference);
+
+        if (parts.Count == 0)
+        {
+            return null;
+        }
+
+        await downloads.DeleteForTorrent(torrentId);
+
+        foreach (var part in parts)
+        {
+            await downloads.TryAddForTorrent(torrentId,
+                                             new()
+                                             {
+                                                 FileName = null,
+                                                 RestrictedLink = part.Link,
+                                                 Mirrors = part.Mirrors.Count > 0 ? String.Join('\n', part.Mirrors) : null
+                                             });
+        }
+
+        await torrentData.UpdateDdlFallbackLinks(torrentId, DirectDownloadHelper.FallbackLinks(torrent.DdlFallbackLinks, hostPreference));
+
+        var host = DirectDownloadHelper.HostOf(parts[0].Link);
+
+        Log($"Switched direct download to {host} ({parts.Count} links)", torrent);
+
+        return host;
     }
 
     public async Task<String> UseLinkFileName(Guid downloadId, String unrestrictedLink)

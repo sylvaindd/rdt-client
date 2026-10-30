@@ -15,7 +15,7 @@ namespace RdtClient.Data.Migrations
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "10.0.5");
+            modelBuilder.HasAnnotation("ProductVersion", "10.0.13");
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
                 {
@@ -303,6 +303,9 @@ namespace RdtClient.Data.Migrations
                     b.Property<DateTimeOffset?>("Completed")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("DdlFallbackLinks")
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("DeleteOnError")
                         .HasColumnType("INTEGER");
 
@@ -491,9 +494,7 @@ namespace RdtClient.Data.Migrations
                 {
                     b.HasOne("RdtClient.Data.Models.Data.Torrent", "Torrent")
                         .WithOne("Payload")
-                        .HasForeignKey("RdtClient.Data.Models.Data.TorrentPayload", "TorrentId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
+                        .HasForeignKey("RdtClient.Data.Models.Data.TorrentPayload", "TorrentId");
 
                     b.Navigation("Torrent");
                 });
@@ -501,6 +502,7 @@ namespace RdtClient.Data.Migrations
             modelBuilder.Entity("RdtClient.Data.Models.Data.Torrent", b =>
                 {
                     b.Navigation("Downloads");
+
                     b.Navigation("Payload");
                 });
 #pragma warning restore 612, 618

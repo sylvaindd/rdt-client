@@ -111,23 +111,12 @@ public static partial class DirectDownloadHelper
     /// </summary>
     public static IList<DirectDownloadPart> PlanParts(String text, String? hostPreference = null)
     {
-        var preferred = HostPreference(hostPreference);
+        var hosts = RankHosts(text, hostPreference);
 
-        var links = UrlRegex().Matches(text)
-                              .Select(m => m.Value.TrimEnd('.', ',', ')', ']', ';'))
-                              .Where(m => Uri.TryCreate(m, UriKind.Absolute, out _))
-                              .Distinct()
-                              .ToList();
-
-        if (links.Count == 0)
+        if (hosts.Count == 0)
         {
             return [];
         }
-
-        var hosts = links.GroupBy(m => HostKey(new Uri(m).Host))
-                         .OrderByDescending(g => g.Count())
-                         .ThenBy(g => PreferenceIndex(preferred, g.Key))
-                         .ToList();
 
         var others = hosts.Skip(1).SelectMany(g => g).ToList();
 
@@ -140,6 +129,84 @@ public static partial class DirectDownloadHelper
                            return new DirectDownloadPart(link, mirrors);
                        })
                        .ToList();
+    }
+
+    /// <summary>
+    ///     The links of every host <see cref="PlanParts" /> did not pick, one per line, or null when there are none. Hosts often
+    ///     package the same release differently (one file vs. split archives), so per-file mirrors cannot always cover a host
+    ///     outage; these let the whole item move to another host. Planning them again picks the next host.
+    /// </summary>
+    public static String? FallbackLinks(String text, String? hostPreference = null)
+    {
+        var rest = RankHosts(text, hostPreference).Skip(1).SelectMany(g => g).ToList();
+
+        return rest.Count > 0 ? String.Join('\n', rest) : null;
+    }
+
+    public static String HostOf(String link)
+    {
+        return HostKey(new Uri(link).Host);
+    }
+
+    /// <summary>
+    ///     True for debrid errors about the hoster itself (AllDebrid LINK_HOST_UNAVAILABLE, LINK_HOST_NOT_SUPPORTED, …), where
+    ///     retrying the same host is pointless.
+    /// </summary>
+    public static Boolean IsHostRejection(String? error)
+    {
+        return error != null && error.Contains("LINK_HOST_", StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    ///     Groups the links by host, best first: hosts with a complete archive set (no ".partN.rar" missing that another host
+    ///     has), then the configured preference, then the number of links. Counting links alone would favour a host that
+    ///     splits the release into archives over one that offers the whole file.
+    /// </summary>
+    private static List<List<String>> RankHosts(String text, String? hostPreference)
+    {
+        var preferred = HostPreference(hostPreference);
+
+        var links = UrlRegex().Matches(text)
+                              .Select(m => m.Value.TrimEnd('.', ',', ')', ']', ';'))
+                              .Where(m => Uri.TryCreate(m, UriKind.Absolute, out _))
+                              .Distinct()
+                              .ToList();
+
+        var lastPart = links.Select(RarPart)
+                            .Where(p => p != null)
+                            .Select(p => p!.Value)
+                            .GroupBy(p => p.Base)
+                            .ToDictionary(g => g.Key, g => g.Max(p => p.Number));
+
+        return links.GroupBy(HostOf)
+                    .OrderBy(g => HasEveryPart(g, lastPart) ? 0 : 1)
+                    .ThenBy(g => PreferenceIndex(preferred, g.Key))
+                    .ThenByDescending(g => g.Count())
+                    .Select(g => g.ToList())
+                    .ToList();
+    }
+
+    private static Boolean HasEveryPart(IEnumerable<String> hostLinks, Dictionary<String, Int32> lastPart)
+    {
+        return hostLinks.Select(RarPart)
+                        .Where(p => p != null)
+                        .Select(p => p!.Value)
+                        .GroupBy(p => p.Base)
+                        .All(g => Enumerable.Range(1, lastPart[g.Key]).All(n => g.Any(p => p.Number == n)));
+    }
+
+    private static (String Base, Int32 Number)? RarPart(String link)
+    {
+        var key = MirrorKey(link);
+
+        if (key == null)
+        {
+            return null;
+        }
+
+        var match = RarPartRegex().Match(key);
+
+        return match.Success ? (key[..match.Index], Int32.Parse(match.Groups[1].Value)) : null;
     }
 
     /// <summary>
