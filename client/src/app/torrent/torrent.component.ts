@@ -130,6 +130,7 @@ export class TorrentComponent implements OnInit {
       ...currentTorrent,
       ...updatedTorrent,
       fileOrMagnet: updatedTorrent.fileOrMagnet ?? currentTorrent?.fileOrMagnet,
+      postUrl: updatedTorrent.postUrl ?? currentTorrent?.postUrl,
       files: hasIncomingFiles ? updatedTorrent.files : (currentTorrent?.files ?? []),
       downloads: updatedTorrent.downloads ?? currentTorrent?.downloads ?? [],
     };
